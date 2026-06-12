@@ -69,6 +69,11 @@ jobs:
           echo ""
           echo "=== Available simulators ==="
           xcrun simctl list devices available
+          echo ""
+          echo "=== Checking repo ==="
+          ls -la
+          ls -la ios/ 2>/dev/null || echo "NO ios/ DIR"
+          ls -la lib/ 2>/dev/null || echo "NO lib/ DIR"
 
       - name: Install iOS dependencies
         env:
@@ -86,14 +91,29 @@ jobs:
           CODE_SIGNING_REQUIRED: "NO"
           CODE_SIGNING_ALLOWED: "NO"
         run: |
+          echo "=== Running flutter build ==="
           flutter build ios --simulator --no-codesign 2>&1 | tee build.log
-          echo "Flutter exit code: ${PIPESTATUS[0]}"
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "Flutter exit code: $EXIT_CODE"
           echo ""
-          echo "=== build.log tail ==="
-          tail -30 build.log || echo "(empty or missing)"
+          echo "=== build.log content ==="
+          if [ -f build.log ]; then
+            cat build.log
+          else
+            echo "(build.log not created)"
+          fi
           echo ""
-          echo "=== Checking build output ==="
-          find build -name "*.app" 2>/dev/null && echo "BUILD_SUCCESS=true" >> $GITHUB_ENV || echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
+          echo "=== Checking Runner.app ==="
+          if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
+            echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+            echo "Runner.app found"
+          else
+            echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
+            echo "Runner.app NOT found"
+            echo ""
+            echo "=== build/ directory ==="
+            ls -la build/ 2>/dev/null || echo "(no build/)"
+          fi
 
       - name: Upload build artifacts
         if: env.BUILD_SUCCESS == 'true'
@@ -123,10 +143,11 @@ jobs:
           echo "| Flutter | ${{ env.FLUTTER_VERSION }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Xcode | $(xcodebuild -version | head -1) |" >> $GITHUB_STEP_SUMMARY
           echo "| macOS | $(sw_vers -productVersion) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build success | ${{ env.BUILD_SUCCESS }} |" >> $GITHUB_STEP_SUMMARY
           if [ "$BUILD_SUCCESS" != "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### build.log (last 80 lines)" >> $GITHUB_STEP_SUMMARY
+            echo "### build.log" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -80 build.log 2>/dev/null || echo "(no build.log)" >> $GITHUB_STEP_SUMMARY
+            cat build.log 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "(no build.log)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
