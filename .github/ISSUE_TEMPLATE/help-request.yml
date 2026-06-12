@@ -1,0 +1,28 @@
+name: Build / Setup Help
+description: Get help with building or setting up the app
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 需要帮助？
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 遇到的问题
+      placeholder: 请描述你遇到的具体问题...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: step
+    attributes:
+      label: 在哪一步遇到问题？
+      options:
+        - GitHub Actions CI 构建
+        - Codemagic 构建
+        - 本地开发（需要 Mac）
+        - 安装 IPA 到设备
+        - 连接无人机
+        - 其他
