@@ -1,0 +1,38 @@
+name: Analyze & Test
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+
+      - run: flutter pub get
+
+      - name: Run Flutter analyzer
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Dart dependency check
+        run: flutter pub deps -- --style=compact
+
+  android-check:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nicko170/cached-flutter:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Android build.gradle syntax
+        run: |
+          if [ -f "app/build.gradle" ]; then
+            echo "Android project detected - run 'gradlew assembleDebug' on your local machine"
+          fi

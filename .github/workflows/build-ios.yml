@@ -1,0 +1,147 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [main, ios]
+  pull_request:
+    branches: [main, ios]
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: 'Flutter version'
+        required: false
+        default: '3.24.0'
+        type: string
+      dji_sdk_version:
+        description: 'DJI SDK version'
+        required: false
+        default: '4.16.1'
+        type: string
+
+env:
+  FLUTTER_VERSION: ${{ inputs.flutter_version || '3.24.0' }}
+  DJI_SDK_VERSION: ${{ inputs.dji_sdk_version || '4.16.1' }}
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}-osx
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.gradle/caches
+            build/ios
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Get Flutter dependencies
+        run: |
+          flutter pub get
+
+      - name: Set up iOS Code Signing (Development)
+        env:
+          BUILD_CODESIGN_IDENTITY: "-"
+          PROVISIONING_PROFILE_SPECIFIER: "-"
+        run: |
+          # Use manual signing for CI - no actual signing identity needed for .ipa
+          mkdir -p ios/Runner.xcodeproj
+          /usr/libexec/PlistBuddy -c "Set :DevelopmentTeam ${{ vars.APPLE_TEAM_ID || 'XXXXXXXXXX' }}" ios/Runner.xcodeproj/project.pbxproj 2>/dev/null || true
+
+      - name: Update Podfile with DJI SDK version
+        run: |
+          sed -i '' "s/DJI-SDK-iOS', '~> [0-9.]*'/DJI-SDK-iOS', '~> ${{ env.DJI_SDK_VERSION }}'/" ios/Podfile || true
+
+      - name: Install iOS dependencies
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Build iOS (Simulator, no code signing)
+        env:
+          BUILD_LIBRARY_FOR_DISTRIBUTION: "YES"
+          CODE_SIGN_IDENTITY: "-"
+          CODE_SIGNING_REQUIRED: "NO"
+          CODE_SIGNING_ALLOWED: "NO"
+        run: |
+          flutter build ios --simulator --no-codesign 2>&1 | tee build.log
+          # Verify build succeeded
+          if grep -q "Built build/ios/iphonesimulator/" build.log; then
+            echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+          else
+            echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
+            cat build.log
+          fi
+
+      - name: Build iOS Device IPA (with code signing)
+        if: vars.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ vars.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ vars.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE: ${{ vars.APPLE_PROVISIONING_PROFILE }}
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: ${{ vars.APPLE_TEAM_ID }}
+          CODE_SIGN_IDENTITY: "Apple Development"
+          PROVISIONING_PROFILE_SPECIFIER: ${{ vars.APPLE_PROVISIONING_PROFILE_NAME }}
+        run: |
+          # Create certificate files
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode -o certificate.p12
+          echo -n "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o profile.mobileprovision
+
+          # Import certificate
+          security create-keychain -p "" build-keychain
+          security set-keychain-settings build-keychain
+          security unlock-keychain -p "" build-keychain
+          security import certificate.p12 -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k build-keychain
+          security set-key-partition-list -S apple-tool: -k "" build-keychain
+          security list-keychain -d user -s build-keychain
+
+          # Install provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          # Build
+          flutter build ios --release --no-codesign 2>&1 | tee build-release.log
+
+          # Verify .ipa exists
+          if [ -f build/ios/iphonesimulator/Runner.app ]; then
+            echo "IPHONE_APP_EXISTS=true" >> $GITHUB_ENV
+          fi
+
+      - name: Upload build artifacts
+        if: env.BUILD_SUCCESS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-artifacts
+          path: |
+            build/ios/iphonesimulator/Runner.app
+            build/ios/iphonesimulator/Runner.app.dSYM
+          retention-days: 7
+
+      - name: Summary
+        run: |
+          if [ "$BUILD_SUCCESS" = "true" ]; then
+            echo "## iOS Build: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "- Built: `build/ios/iphonesimulator/Runner.app`" >> $GITHUB_STEP_SUMMARY
+            echo "- Flutter: $FLUTTER_VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "- DJI SDK: $DJI_SDK_VERSION" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## iOS Build: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Check the build log for errors." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

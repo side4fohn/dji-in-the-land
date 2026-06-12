@@ -1,0 +1,23 @@
+name: Sync to GitHub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'Source branch (local changes)'
+        required: false
+        default: 'main'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync info
+        run: |
+          echo "Sync to GitHub"
+          echo "This workflow helps you push local changes to GitHub"
+          echo "In VS Code, run:"
+          echo "  git remote set-url origin https://github.com/side4fohn/dji-in-the-land.git"
+          echo "  git push origin main"
