@@ -59,16 +59,15 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Install iOS dependencies (pod install)
+      - name: Install iOS dependencies
         env:
           BUILD_LIBRARY_FOR_DISTRIBUTION: "YES"
-          CODESIGNING_IDENTITY: "-"
+          CODE_SIGN_IDENTITY: "-"
           CODE_SIGNING_REQUIRED: "NO"
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           cd ios
-          # Remove --repo-update to avoid slow spec repo update on every run
-          pod install --verbose 2>&1 | tee ../pod_install.log
+          pod install 2>&1 | tee ../pod_install.log
           cd ..
 
       - name: Build iOS Simulator
@@ -79,8 +78,17 @@ jobs:
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           flutter build ios --simulator --no-codesign 2>&1 | tee build.log
-          if grep -q "Built build/ios/iphonesimulator/" build.log; then
+          echo "--- Build log ---"
+          cat build.log
+          echo "--- End build log ---"
+          # Check if Runner.app exists
+          if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
             echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+            echo "Artifact size: $(du -sh build/ios/iphonesimulator/Runner.app | cut -f1)"
+          else
+            echo "Runner.app not found in build/ios/iphonesimulator/"
+            ls -la build/ios/ 2>/dev/null || echo "build/ios/ does not exist"
+            echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
           fi
 
       - name: Upload build artifacts
@@ -105,25 +113,22 @@ jobs:
             echo "| Artifact | `Runner.app` |" >> $GITHUB_STEP_SUMMARY
           else
             echo "## iOS Build: FAILED" >> $GITHUB_STEP_SUMMARY
-            if [ -f pod_install.log ]; then
-              echo "### Pod install log (last 50 lines):" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              tail -50 pod_install.log >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-            fi
             if [ -f build.log ]; then
-              echo "### Build log (last 50 lines):" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Build log" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
-              tail -50 build.log >> $GITHUB_STEP_SUMMARY
+              tail -80 build.log >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
             fi
             exit 1
           fi
 
-      - name: Upload pod install log on failure
+      - name: Upload logs on failure
         if: env.BUILD_SUCCESS != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: pod-install-log-${{ github.run_number }}
-          path: pod_install.log
+          name: build-logs-${{ github.run_number }}
+          path: |
+            build.log
+            pod_install.log
           retention-days: 7
