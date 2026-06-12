@@ -1,0 +1,60 @@
+# XcodeGen configuration for GimbalCtrl iOS project
+# Install XcodeGen: https://github.com/yonaskolb/XcodeGen
+# Run: xcodegen generate
+
+name: GimbalCtrl
+options:
+  bundleIdPrefix: com.dji
+  deploymentTarget:
+    iOS: "14.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_BITCODE: NO
+
+targets:
+  Runner:
+    type: application
+    platform: iOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Runner
+        excludes:
+          - "*.entitlements"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dji.gimbalctrl
+        INFOPLIST_FILE: Runner/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Runner/Runner.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_OBJC_BRIDGING_HEADER: ""
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(PROJECT_DIR)/Flutter"
+          - "$(PROJECT_DIR)/Pods"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-ObjC"
+          - "-lz"
+          - "-lc++"
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(PROJECT_DIR)/Flutter"
+          - "$(PROJECT_DIR)/Pods"
+    entitlements:
+      path: Runner/Runner.entitlements
+      properties:
+        com.apple.developer.networking.wifi-info: true
+        com.apple.security.application-groups:
+          - group.com.dji.gimbalctrl

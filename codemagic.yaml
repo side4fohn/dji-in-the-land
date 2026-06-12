@@ -1,0 +1,35 @@
+workflow:
+  name: Build iOS
+
+  environment:
+    flutter: "3.24.0"
+    xcode: "15.0"
+    cocoapods: "1.15.0"
+
+  scripts:
+    - name: Get Flutter dependencies
+      script: |
+        flutter pub get
+
+    - name: Update DJI SDK version
+      script: |
+        if [ -f ios/Podfile ]; then
+          sed -i '' "s|DJI-SDK-iOS.*|pod 'DJI-SDK-iOS', '~> 4.16.1'|" ios/Podfile
+        fi
+
+    - name: Install iOS dependencies
+      script: |
+        cd ios
+        pod install --repo-update
+
+    - name: Build iOS (no code signing)
+      script: |
+        flutter build ios --simulator --no-codesign
+
+  artifacts:
+    - build/ios/iphonesimulator/Runner.app
+    - build/ios/iphonesimulator/Runner.app.dSYM
+
+  publishing:
+    # No automatic publishing - download artifacts manually and sign with 轻松签
+    # Upload IPA to Codemagic and sign there if needed
