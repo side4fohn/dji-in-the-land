@@ -79,24 +79,18 @@ jobs:
         run: |
           set -o pipefail
           flutter build ios --simulator --no-codesign 2>&1 | tee build.log
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "Flutter exit code: $EXIT_CODE"
-          # Show build log tail so we can see it in step output
           echo "=== Last 30 lines of build.log ==="
           tail -30 build.log || true
-          # Check multiple possible locations
           for dir in build/ios/iphonesimulator build/ios/iphoneos build/ios; do
             if [ -d "$dir/Runner.app" ]; then
               echo "FOUND Runner.app in $dir"
               echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
-              echo "Found in: $dir" >> $GITHUB_OUTPUT
               exit 0
             fi
           done
           echo "Runner.app not found"
-          echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
-          echo "Searching build output..."
           find build -name "*.app" 2>/dev/null || echo "No .app found"
+          echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
           exit 1
 
       - name: Upload build artifacts
@@ -114,7 +108,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$BUILD_SUCCESS" = "true" ]; then
             echo ":white_check_mark: SUCCESS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
             echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| Flutter | ${{ env.FLUTTER_VERSION }} |" >> $GITHUB_STEP_SUMMARY
@@ -124,6 +117,6 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### build.log (last 50 lines)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -50 build.log 2>/dev/null || echo "(no build.log found)" >> $GITHUB_STEP_SUMMARY
+            tail -50 build.log 2>/dev/null || echo "(no build.log)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
