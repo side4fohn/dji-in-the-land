@@ -59,9 +59,14 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Diagnostic
+        run: |
+          xcodebuild -version
+          flutter doctor -v
+          xcrun simctl list devices available
+
       - name: Install iOS dependencies
         env:
-          BUILD_LIBRARY_FOR_DISTRIBUTION: "YES"
           CODE_SIGN_IDENTITY: "-"
           CODE_SIGNING_REQUIRED: "NO"
           CODE_SIGNING_ALLOWED: "NO"
@@ -72,26 +77,18 @@ jobs:
 
       - name: Build iOS Simulator
         env:
-          BUILD_LIBRARY_FOR_DISTRIBUTION: "YES"
           CODE_SIGN_IDENTITY: "-"
           CODE_SIGNING_REQUIRED: "NO"
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           set -o pipefail
-          flutter build ios --simulator --no-codesign 2>&1 | tee build.log
-          echo "=== Last 30 lines of build.log ==="
-          tail -30 build.log || true
-          for dir in build/ios/iphonesimulator build/ios/iphoneos build/ios; do
-            if [ -d "$dir/Runner.app" ]; then
-              echo "FOUND Runner.app in $dir"
-              echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
-              exit 0
-            fi
-          done
-          echo "Runner.app not found"
-          find build -name "*.app" 2>/dev/null || echo "No .app found"
-          echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
-          exit 1
+          flutter build ios --simulator --no-codesign -v 2>&1 | tee build.log
+          echo "=== build.log tail ===" && tail -50 build.log || true
+          if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
+            echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+          else
+            echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
+          fi
 
       - name: Upload build artifacts
         if: env.BUILD_SUCCESS == 'true'
@@ -105,18 +102,16 @@ jobs:
         if: always()
         run: |
           echo "## Build Result" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$BUILD_SUCCESS" = "true" ]; then
             echo ":white_check_mark: SUCCESS" >> $GITHUB_STEP_SUMMARY
             echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
             echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| Flutter | ${{ env.FLUTTER_VERSION }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| DJI SDK | ${{ env.DJI_SDK_VERSION }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo ":x: FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### build.log (last 50 lines)" >> $GITHUB_STEP_SUMMARY
+            echo "### build.log (last 60 lines)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -50 build.log 2>/dev/null || echo "(no build.log)" >> $GITHUB_STEP_SUMMARY
+            tail -60 build.log 2>/dev/null || echo "(no build.log)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
