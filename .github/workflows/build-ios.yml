@@ -77,58 +77,53 @@ jobs:
           CODE_SIGNING_REQUIRED: "NO"
           CODE_SIGNING_ALLOWED: "NO"
         run: |
+          set -o pipefail
           flutter build ios --simulator --no-codesign 2>&1 | tee build.log
-          echo "--- Build log ---"
-          cat build.log
-          echo "--- End build log ---"
-          # Check if Runner.app exists
-          if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
-            echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
-            echo "Artifact size: $(du -sh build/ios/iphonesimulator/Runner.app | cut -f1)"
-          else
-            echo "Runner.app not found in build/ios/iphonesimulator/"
-            ls -la build/ios/ 2>/dev/null || echo "build/ios/ does not exist"
-            echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
-          fi
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "Flutter exit code: $EXIT_CODE"
+          # Show build log tail so we can see it in step output
+          echo "=== Last 30 lines of build.log ==="
+          tail -30 build.log || true
+          # Check multiple possible locations
+          for dir in build/ios/iphonesimulator build/ios/iphoneos build/ios; do
+            if [ -d "$dir/Runner.app" ]; then
+              echo "FOUND Runner.app in $dir"
+              echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+              echo "Found in: $dir" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "Runner.app not found"
+          echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
+          echo "Searching build output..."
+          find build -name "*.app" 2>/dev/null || echo "No .app found"
+          exit 1
 
       - name: Upload build artifacts
         if: env.BUILD_SUCCESS == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ios-build-artifacts-${{ github.run_number }}
-          path: |
-            build/ios/iphonesimulator/Runner.app
-            build/ios/iphonesimulator/Runner.app.dSYM
+          path: build/ios/iphonesimulator/Runner.app
           retention-days: 7
 
       - name: Summary
+        if: always()
         run: |
+          echo "## Build Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$BUILD_SUCCESS" = "true" ]; then
-            echo "## iOS Build: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo ":white_check_mark: SUCCESS" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
             echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| Flutter | ${{ env.FLUTTER_VERSION }} |" >> $GITHUB_STEP_SUMMARY
             echo "| DJI SDK | ${{ env.DJI_SDK_VERSION }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Artifact | `Runner.app` |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "## iOS Build: FAILED" >> $GITHUB_STEP_SUMMARY
-            if [ -f build.log ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Build log" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              tail -80 build.log >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-            fi
-            exit 1
+            echo ":x: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### build.log (last 50 lines)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 build.log 2>/dev/null || echo "(no build.log found)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Upload logs on failure
-        if: env.BUILD_SUCCESS != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs-${{ github.run_number }}
-          path: |
-            build.log
-            pod_install.log
-          retention-days: 7
