@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 
 class TelemetryManager extends ChangeNotifier {
   int _batteryPercent = -1;
@@ -72,10 +74,12 @@ class TelemetryManager extends ChangeNotifier {
       _lowBatteryWarning = fc['lowBatteryWarning'] ?? false;
       _seriousLowBatteryWarning = fc['seriousLowBatteryWarning'] ?? false;
     }
+
     if (battery != null) {
       _batteryPercent = (battery['percent'] as num?)?.toInt() ?? -1;
       _batteryTemp = (battery['temp'] as num?)?.toDouble() ?? -1;
     }
+
     notifyListeners();
   }
 
