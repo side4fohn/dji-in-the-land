@@ -43,6 +43,14 @@ jobs:
           echo "=== pubspec.yaml AFTER pub get ==="
           head -3 pubspec.yaml
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
       - name: Generate iOS Xcode project
         run: |
           echo "=== CURRENT pubspec.yaml content ==="
