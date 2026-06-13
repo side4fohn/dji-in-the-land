@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../managers/gimbal_controller.dart';
@@ -238,8 +239,8 @@ class _VirtualJoystickState extends State<_VirtualJoystick> {
                 final maxRadius = size / 2;
                 final dist = delta.distance.clamp(0.0, maxRadius);
                 final angle = delta.direction;
-                final nx = (dist / maxRadius) * (angle.cos());
-                final ny = (dist / maxRadius) * (angle.sin());
+                final nx = (dist / maxRadius) * math.cos(angle);
+                final ny = (dist / maxRadius) * math.sin(angle);
                 setState(() => _position = Offset(nx, -ny));
                 widget.onChanged(nx, ny);
               },
