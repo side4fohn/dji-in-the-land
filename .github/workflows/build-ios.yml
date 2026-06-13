@@ -121,7 +121,8 @@ jobs:
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           cd ios
-          pod install 2>&1 | tee ../pod_install.log
+          pod repo add dji-sdk https://github.com/dji-sdk/Specs.git 2>&1 || echo "Repo add failed, trying with --repo-update"
+          pod install --repo-update 2>&1 | tee ../pod_install.log
           cd ..
           echo "=== pod install result ==="
           echo "DJISDK found:"
