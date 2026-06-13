@@ -93,6 +93,34 @@ jobs:
           fi
 
           echo ""
+          echo "=== Step 3b: Add custom Swift files to Xcode project ==="
+          gem install xcodeproj 2>&1 | tail -3 || true
+          ruby -e "
+            require 'xcodeproj'
+            project_path = 'ios/Runner.xcodeproj'
+            project = Xcodeproj::Project.open(project_path)
+            target = project.targets.find { |t| t.name == 'Runner' }
+            runner_group = project.main_group.find_subpath('Runner', true)
+
+            swift_files = ['CameraEventStreamHandler.swift', 'RCEventStreamHandler.swift', 'TelemetryEventStreamHandler.swift', 'VideoEventStreamHandler.swift']
+            swift_files.each do |fname|
+              fpath = \"ios/Runner/#{fname}\"
+              next unless File.exist?(fpath)
+              existing = runner_group.files.find { |f| f.path == fname }
+              unless existing
+                file_ref = runner_group.new_file(fname)
+                build_phase = target.source_build_phase
+                build_phase.add_file_reference(file_ref)
+                puts \"Added #{fname} to Xcode project\"
+              else
+                puts \"#{fname} already in project\"
+              end
+            end
+            project.save
+            puts 'Xcode project saved.'
+          " 2>&1 || echo "Xcodeproj script failed, continuing..."
+
+          echo ""
           echo "=== Step 4: Verify Xcode project ==="
           if [ -d "ios/Runner.xcodeproj" ]; then
             echo "SUCCESS: ios/Runner.xcodeproj found"
