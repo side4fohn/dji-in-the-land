@@ -35,34 +35,20 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-          cache: true
-          cache-key: flutter-${{ env.FLUTTER_VERSION }}-osx-${{ hashFiles('**/pubspec.lock') }}
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            build/ios
-          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          cache: false
 
       - name: Get Flutter dependencies
         run: |
-          flutter pub get
-          git checkout -- pubspec.yaml
+          flutter pub get --no-precompile
+          echo "=== pubspec.yaml AFTER pub get ==="
+          head -3 pubspec.yaml
 
       - name: Generate iOS Xcode project
         run: |
+          echo "=== CURRENT pubspec.yaml content ==="
+          head -3 pubspec.yaml
+
+          echo ""
           echo "=== Step 1: Backup custom files ==="
           mkdir -p /tmp/ios_backup
           if [ -d "ios/Runner" ]; then
@@ -81,7 +67,7 @@ jobs:
           echo ""
           echo "=== Step 2: Regenerate iOS platform ==="
           rm -rf ios
-          flutter create . --platforms=ios --org com.dji 2>&1 | tail -20
+          flutter create . --platforms=ios --org com.dji 2>&1
 
           echo ""
           echo "=== Step 3: Restore custom files ==="
@@ -117,11 +103,6 @@ jobs:
           echo ""
           echo "=== Available simulators ==="
           xcrun simctl list devices available
-          echo ""
-          echo "=== Checking repo ==="
-          ls -la
-          ls -la ios/ 2>/dev/null || echo "NO ios/ DIR"
-          ls -la lib/ 2>/dev/null || echo "NO lib/ DIR"
 
       - name: Install iOS dependencies
         env:
@@ -145,9 +126,6 @@ jobs:
           echo ""
           echo "=== Flutter exit code: $EXIT_CODE ==="
           echo ""
-          echo "=== build.log content ==="
-          cat build.log || echo "(build.log not created)"
-          echo ""
           echo "=== Checking Runner.app ==="
           if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
             echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
@@ -156,8 +134,8 @@ jobs:
             echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
             echo "Runner.app NOT found. BUILD FAILED"
             echo ""
-            echo "=== build/ directory contents ==="
-            ls -la build/ 2>/dev/null || echo "(no build/ directory)"
+            echo "=== build.log ==="
+            cat build.log || echo "(no build.log)"
           fi
           echo "::endgroup::"
 
