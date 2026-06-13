@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -459,8 +460,8 @@ class _VirtualJoystickWidgetState extends State<_VirtualJoystickWidget> {
         final maxRadius = size.width / 2;
         final dist = delta.distance.clamp(0.0, maxRadius);
         final angle = delta.direction;
-        final nx = (dist / maxRadius) * (angle.dx.isNaN ? 0 : (dist > 0 ? delta.dx / dist : 0));
-        final ny = (dist / maxRadius) * (dist > 0 ? -delta.dy / dist : 0);
+        final nx = (dist / maxRadius) * math.cos(angle);
+        final ny = (dist / maxRadius) * math.sin(angle);
         setState(() => _position = Offset(nx, ny) * maxRadius);
         widget.onChanged(nx, ny);
       },
