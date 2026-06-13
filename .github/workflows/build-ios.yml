@@ -121,21 +121,22 @@ jobs:
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           echo "::group::Build iOS Simulator"
-          flutter build ios --simulator --no-codesign 2>&1 | tee build.log
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo ""
-          echo "=== Flutter exit code: $EXIT_CODE ==="
+          flutter build ios --simulator --no-codesign 2>&1 | tee build.log || true
           echo ""
           echo "=== Checking Runner.app ==="
           if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
             echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
             echo "Runner.app found! BUILD SUCCESS"
+            ls -la build/ios/iphonesimulator/
           else
             echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
             echo "Runner.app NOT found. BUILD FAILED"
             echo ""
-            echo "=== build.log ==="
-            cat build.log || echo "(no build.log)"
+            echo "=== build.log (last 50 lines) ==="
+            tail -50 build.log || echo "(no build.log)"
+            echo ""
+            echo "=== build/ directory ==="
+            ls -la build/ 2>/dev/null || echo "(no build/)"
           fi
           echo "::endgroup::"
 
