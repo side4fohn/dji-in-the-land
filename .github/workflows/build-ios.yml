@@ -61,16 +61,48 @@ jobs:
 
       - name: Generate iOS Xcode project
         run: |
-          echo "=== Repo structure before ==="
-          ls -la
-          ls -la ios/ 2>/dev/null || echo "NO ios/"
+          echo "=== Step 1: Backup custom files ==="
+          mkdir -p /tmp/ios_backup
+          if [ -d "ios/Runner" ]; then
+            cp -r ios/Runner /tmp/ios_backup/
+            echo "Backed up ios/Runner/"
+          else
+            echo "No ios/Runner/ to back up"
+          fi
+          if [ -f "ios/Podfile" ]; then
+            cp ios/Podfile /tmp/ios_backup/
+            echo "Backed up ios/Podfile"
+          else
+            echo "No ios/Podfile to back up"
+          fi
+
           echo ""
-          echo "=== Generating Xcode project ==="
-          flutter create ios --platforms=ios --org com.dji 2>&1 | head -20
+          echo "=== Step 2: Regenerate iOS platform ==="
+          rm -rf ios
+          flutter create . --platforms=ios --org com.dji 2>&1 | tail -20
+
           echo ""
-          echo "=== Repo structure after ==="
-          ls -la ios/
-          ls -la ios/Runner.xcodeproj 2>/dev/null || echo "NO Runner.xcodeproj"
+          echo "=== Step 3: Restore custom files ==="
+          if [ -f "/tmp/ios_backup/Podfile" ]; then
+            cp /tmp/ios_backup/Podfile ios/
+            echo "Restored custom Podfile"
+          fi
+          if [ -d "/tmp/ios_backup/Runner" ]; then
+            cp -r /tmp/ios_backup/Runner/* ios/Runner/
+            echo "Restored custom Swift files to ios/Runner/"
+            ls -la ios/Runner/
+          fi
+
+          echo ""
+          echo "=== Step 4: Verify Xcode project ==="
+          if [ -d "ios/Runner.xcodeproj" ]; then
+            echo "SUCCESS: ios/Runner.xcodeproj found"
+            ls -la ios/
+          else
+            echo "FAILURE: ios/Runner.xcodeproj NOT found"
+            ls -la ios/
+            exit 1
+          fi
 
       - name: Diagnostic
         run: |
