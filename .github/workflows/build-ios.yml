@@ -67,7 +67,7 @@ jobs:
           echo ""
           echo "=== Step 2: Regenerate iOS platform ==="
           rm -rf ios
-          flutter create . --platforms=ios --org com.dji 2>&1
+          flutter create . --platforms=ios --org com.dji --project-name gimbal_ctrl 2>&1
 
           echo ""
           echo "=== Step 3: Restore custom files ==="
