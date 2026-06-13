@@ -56,24 +56,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Backup pubspec.yaml
-        run: |
-          cp pubspec.yaml /tmp/pubspec_backup.yaml
-          echo "Backed up pubspec.yaml"
-          grep "name:" /tmp/pubspec_backup.yaml
-
       - name: Get Flutter dependencies
         run: flutter pub get
-
-      - name: Restore pubspec.yaml
-        run: |
-          if [ -f "/tmp/pubspec_backup.yaml" ]; then
-            cp /tmp/pubspec_backup.yaml pubspec.yaml
-            echo "Restored pubspec.yaml"
-          else
-            echo "No pubspec.yaml backup found"
-          fi
-          grep "name:" pubspec.yaml
 
       - name: Generate iOS Xcode project
         run: |
@@ -93,22 +77,12 @@ jobs:
           fi
 
           echo ""
-          echo "=== Step 2: Fix project name (hyphens not allowed in Dart package names) ==="
-          if grep -q "name: dji-in-the-land" pubspec.yaml; then
-            sed -i 's/name: dji-in-the-land/name: dji_in_the_land/' pubspec.yaml
-            echo "Fixed project name in pubspec.yaml"
-            cat pubspec.yaml | head -5
-          else
-            echo "Project name already valid"
-          fi
-
-          echo ""
-          echo "=== Step 3: Regenerate iOS platform ==="
+          echo "=== Step 2: Regenerate iOS platform ==="
           rm -rf ios
           flutter create . --platforms=ios --org com.dji 2>&1 | tail -20
 
           echo ""
-          echo "=== Step 4: Restore custom files ==="
+          echo "=== Step 3: Restore custom files ==="
           if [ -f "/tmp/ios_backup/Podfile" ]; then
             cp /tmp/ios_backup/Podfile ios/
             echo "Restored custom Podfile"
@@ -121,14 +95,7 @@ jobs:
           fi
 
           echo ""
-          echo "=== Step 5: Restore project name in pubspec.yaml ==="
-          if grep -q "name: dji_in_the_land" pubspec.yaml; then
-            sed -i 's/name: dji_in_the_land/name: dji-in-the-land/' pubspec.yaml
-            echo "Restored project name"
-          fi
-
-          echo ""
-          echo "=== Step 6: Verify Xcode project ==="
+          echo "=== Step 4: Verify Xcode project ==="
           if [ -d "ios/Runner.xcodeproj" ]; then
             echo "SUCCESS: ios/Runner.xcodeproj found"
             ls -la ios/
