@@ -56,8 +56,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      - name: Backup pubspec.yaml
+        run: |
+          cp pubspec.yaml /tmp/pubspec_backup.yaml
+          echo "Backed up pubspec.yaml"
+          grep "name:" /tmp/pubspec_backup.yaml
+
       - name: Get Flutter dependencies
         run: flutter pub get
+
+      - name: Restore pubspec.yaml
+        run: |
+          if [ -f "/tmp/pubspec_backup.yaml" ]; then
+            cp /tmp/pubspec_backup.yaml pubspec.yaml
+            echo "Restored pubspec.yaml"
+          else
+            echo "No pubspec.yaml backup found"
+          fi
+          grep "name:" pubspec.yaml
 
       - name: Generate iOS Xcode project
         run: |
