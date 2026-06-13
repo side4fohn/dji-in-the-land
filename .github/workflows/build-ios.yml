@@ -82,6 +82,8 @@ jobs:
           if [ -f "/tmp/ios_backup/Podfile" ]; then
             cp /tmp/ios_backup/Podfile ios/
             echo "Restored custom Podfile"
+            echo "=== Podfile content ==="
+            head -15 ios/Podfile
           fi
           if [ -d "/tmp/ios_backup/Runner" ]; then
             mkdir -p ios/Runner
@@ -121,6 +123,12 @@ jobs:
           cd ios
           pod install 2>&1 | tee ../pod_install.log
           cd ..
+          echo "=== pod install result ==="
+          echo "DJISDK found:"
+          find ios/Pods -name "DJISDK*" -type d 2>/dev/null | head -5 || echo "NOT FOUND"
+          echo ""
+          echo "Pods directory:"
+          ls ios/Pods/ 2>/dev/null || echo "NO Pods/"
 
       - name: Build iOS Simulator
         env:
