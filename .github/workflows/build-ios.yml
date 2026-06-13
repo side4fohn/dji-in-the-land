@@ -57,7 +57,9 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get Flutter dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          git checkout -- pubspec.yaml
 
       - name: Generate iOS Xcode project
         run: |
